@@ -2709,7 +2709,6 @@ class Flight:
         return u_dot
 
     def u_dot_parachute(self, t, u, post_processing=False):
-        print("Aleksei is doing the parachute descending")
         """Calculates derivative of u state vector with respect to time
         when rocket is flying under parachute. A 3 DOF approximation is
         used.
@@ -2742,16 +2741,6 @@ class Flight:
 
         # Get the mass of the rocket
         mp = self.rocket.dry_mass
-
-        # to = 1.2
-        # eta = 1
-        # Rdot = (6 * R * (1 - eta) / (1.2**6)) * (
-        #     (1 - eta) * t**5 + eta * (to**3) * (t**2)
-        # )
-        # Rdot = 0
-
-        # tf = 8 * nominal diameter / velocity at line stretch
-
         # Calculate added mass
         ma = (
             self.parachute_added_mass_coefficient
@@ -2774,8 +2763,8 @@ class Flight:
         Dx = pseudo_drag * freestream_x  # add eta efficiency for wake
         Dy = pseudo_drag * freestream_y
         Dz = pseudo_drag * freestream_z
-        ax = Dx / (mp + ma)
-        ay = Dy / (mp + ma)
+        ax = 1#Dx / (mp + ma)
+        ay = 1#Dy / (mp + ma)
         az = (Dz - mp * self.env.gravity.get_value_opt(z)) / (mp + ma)
 
         # Add coriolis acceleration
