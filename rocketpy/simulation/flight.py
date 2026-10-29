@@ -8,8 +8,6 @@ from functools import cached_property
 import numpy as np
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
-alekseisnumber = 0
-
 from ..mathutils.function import Function, funcify_method
 from ..mathutils.vector_matrix import Matrix, Vector
 from ..motors.point_mass_motor import PointMassMotor
@@ -663,6 +661,7 @@ class Flight:
 
     # pylint: disable=too-many-locals,too-many-statements
     def __simulate(self, verbose):
+        print("Aleksei is starting to simulate the flight trajectory...")
         """Simulate the flight trajectory."""
         for phase_index, phase in self.time_iterator(self.flight_phases):
             # Determine maximum time for this flight phase
@@ -2710,6 +2709,7 @@ class Flight:
         return u_dot
 
     def u_dot_parachute(self, t, u, post_processing=False):
+        print("Aleksei is doing the parachute descending")
         """Calculates derivative of u state vector with respect to time
         when rocket is flying under parachute. A 3 DOF approximation is
         used.
@@ -4593,8 +4593,6 @@ class Flight:
                     List containing all the sensors that should be evaluated
                     at this time node.
                 """
-                print("Aleksei is running a _init_ in TimeNode" + str(alekseisnumber))
-                alekseisnumber += 1
                 self.t = t
                 self.parachutes = parachutes
                 self.callbacks = []
