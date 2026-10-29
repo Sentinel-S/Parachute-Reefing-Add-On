@@ -2763,8 +2763,9 @@ class Flight:
         Dx = pseudo_drag * freestream_x  # add eta efficiency for wake
         Dy = pseudo_drag * freestream_y
         Dz = pseudo_drag * freestream_z
-        ax = 1#Dx / (mp + ma)
-        ay = 1#Dy / (mp + ma)
+        
+        ax = Dx / (mp + ma)
+        ay = Dy / (mp + ma)
         az = (Dz - mp * self.env.gravity.get_value_opt(z)) / (mp + ma)
 
         # Add coriolis acceleration
