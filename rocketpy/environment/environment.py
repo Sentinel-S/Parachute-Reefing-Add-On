@@ -346,6 +346,7 @@ class Environment:
         None
         """
         # Initialize constants and atmospheric variables
+        print("Aleksei is initializing the Environment class...")
         self.__initialize_empty_variables()
         self.__initialize_constants()
         self.__initialize_elevation_and_max_height(elevation, max_expected_height)

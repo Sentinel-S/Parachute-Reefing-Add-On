@@ -8,6 +8,8 @@ from functools import cached_property
 import numpy as np
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
+alekseisnumber = 0
+
 from ..mathutils.function import Function, funcify_method
 from ..mathutils.vector_matrix import Matrix, Vector
 from ..motors.point_mass_motor import PointMassMotor
@@ -4591,6 +4593,8 @@ class Flight:
                     List containing all the sensors that should be evaluated
                     at this time node.
                 """
+                print("Aleksei is running a _init_ in TimeNode" + str(alekseisnumber))
+                alekseisnumber += 1
                 self.t = t
                 self.parachutes = parachutes
                 self.callbacks = []
