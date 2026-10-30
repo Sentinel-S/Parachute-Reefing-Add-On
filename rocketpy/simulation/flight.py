@@ -2709,6 +2709,7 @@ class Flight:
         return u_dot
 
     def u_dot_parachute(self, t, u, post_processing=False):
+        #print(f"time is {t}")
         """Calculates derivative of u state vector with respect to time
         when rocket is flying under parachute. A 3 DOF approximation is
         used.
@@ -2732,13 +2733,16 @@ class Flight:
 
         """
         # Get relevant state data
+        e0, e1, e2, e3 = u[6:10]
+        #roll, pitch, yaw = self.quaternion_to_euler(e0, e1, e2, e3)
+        #print(f"Roll: {57.2958 * roll}, Pitch: {57.2958 * pitch}, Yaw: {57.2958 * yaw}")
         z, vx, vy, vz = u[2:6]
-
+        print("velocity down is ", vz)
         # Get atmospheric data
         rho = self.env.density.get_value_opt(z)
         wind_velocity_x = self.env.wind_velocity_x.get_value_opt(z)
         wind_velocity_y = self.env.wind_velocity_y.get_value_opt(z)
-
+        #print(f"Wind velocity at {z} m: ({wind_velocity_x}, {wind_velocity_y}) m/s")
         # Get the mass of the rocket
         mp = self.rocket.dry_mass
         # Calculate added mass
@@ -2780,6 +2784,27 @@ class Flight:
             )
 
         return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0]
+    
+    @staticmethod
+    def quaternion_to_euler(e0, e1, e2, e3):
+        # Rotation about X (roll)
+        x = math.atan2(
+            2 * (e0 * e1 + e2 * e3),
+            1 - 2 * (e1**2 + e2**2)
+        )
+
+        # Rotation about Y (pitch)
+        sin_y = 2 * (e0 * e2 - e3 * e1)
+        sin_y = max(-1.0, min(1.0, sin_y))
+        y = math.asin(sin_y)
+
+        # Rotation about Z (yaw)
+        z = math.atan2(
+            2 * (e0 * e3 + e1 * e2),
+            1 - 2 * (e2**2 + e3**2)
+        )
+
+        return x, y, z
 
     @cached_property
     def solution_array(self):

@@ -108,4 +108,3 @@ print(f"Impact time: {flight.t_final:.2f} s")
 print(f"Impact velocity: {flight.impact_velocity:.2f} m/s")
 print(f"Max speed during descent: {flight.max_speed:.2f} m/s")
 flight.all_info()
-#no clue why
