@@ -2731,37 +2731,18 @@ class Flight:
             e0dot, e1dot, e2dot, e3dot, alpha1, alpha2, alpha3].
 
         """
-        r0 = self.parachute_radius
-        Cd = 1.5
-        z, vx, vy, vz = u[2:6]
-        Vb = Vector([vx, vy, vz]) #body velocity vector
-        rho = self.env.density.get_value_opt(z)
-        wind_velocity_x = self.env.wind_velocity_x.get_value_opt(z)
-        wind_velocity_y = self.env.wind_velocity_y.get_value_opt(z) + 5 * math.sin(t/10) #wind gusts
-        Vw = Vector([wind_velocity_x, wind_velocity_y, 0])
-        Va = Vw - Vb 
-        # Get the mass of the rocket
-        mp = self.rocket.dry_mass
-        # Calculate added mass
-        #ma = (
-        #    self.parachute_added_mass_coefficient
-        #    * rho
-        #    * (2 / 3)
-        #    * np.pi
-        #    * self.parachute_radius**2
-        #    * self.parachute_height
-        #)
+        z = u[2]
 
-        # Determine drag force
-        wind_direction = Va.unit_vector
-        wind_speed = abs(Va)
-        spacial_aoa = math.acos(wind_direction.z/wind_speed) if wind_speed > 0 else 0
-        dynamic_pressure = 0.5 * rho * wind_speed**2
-        ref_area = 3.1415 * r0 **2
-        drag_force = Cd * spacial_aoa * dynamic_pressure * ref_area
-        Fx = drag_force * wind_direction.x
-        Fy = drag_force * wind_direction.y
-        Fz = drag_force * wind_direction.z
+        #mass and inertia
+        mp = self.rocket.dry_mass
+        Ixx = self.rocket.inertia[0] + 
+        Izz = 
+        epsilon = .83
+        R0 = self.parachute_radius #flippin
+        Rp = (2/3) * R0
+        rho = self.env.density.get_value_opt(z)
+        ma = .5 * (4/3) * 3.1415 * rho * Rp**3 * epsilon #mass of air in parachute
+
 
         ax = Fx / (mp)
         ay = Fy / (mp)
@@ -2779,7 +2760,7 @@ class Flight:
                 [t, ax, ay, az, 0, 0, 0, Fx, Fy, Fz, 0, 0, 0, 0]
             )
 
-        return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0]
+        return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
     
     @staticmethod
     def quaternion_to_euler(e0, e1, e2, e3):
