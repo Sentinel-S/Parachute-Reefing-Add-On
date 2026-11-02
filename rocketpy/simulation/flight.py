@@ -2707,9 +2707,8 @@ class Flight:
             )
 
         return u_dot
-
+#we need r0
     def u_dot_parachute(self, t, u, post_processing=False):
-        #print(f"time is {t}")
         """Calculates derivative of u state vector with respect to time
         when rocket is flying under parachute. A 3 DOF approximation is
         used.
@@ -2732,55 +2731,52 @@ class Flight:
             e0dot, e1dot, e2dot, e3dot, alpha1, alpha2, alpha3].
 
         """
-        # Get relevant state data
-        e0, e1, e2, e3 = u[6:10]
-        #roll, pitch, yaw = self.quaternion_to_euler(e0, e1, e2, e3)
-        #print(f"Roll: {57.2958 * roll}, Pitch: {57.2958 * pitch}, Yaw: {57.2958 * yaw}")
+        r0 = self.parachute_radius
+        Cd = 1.5
         z, vx, vy, vz = u[2:6]
-        print("velocity down is ", vz)
-        # Get atmospheric data
+        Vb = Vector([vx, vy, vz]) #body velocity vector
         rho = self.env.density.get_value_opt(z)
         wind_velocity_x = self.env.wind_velocity_x.get_value_opt(z)
-        wind_velocity_y = self.env.wind_velocity_y.get_value_opt(z)
-        #print(f"Wind velocity at {z} m: ({wind_velocity_x}, {wind_velocity_y}) m/s")
+        wind_velocity_y = self.env.wind_velocity_y.get_value_opt(z) + 5 * math.sin(t/10) #wind gusts
+        Vw = Vector([wind_velocity_x, wind_velocity_y, 0])
+        Va = Vw - Vb 
         # Get the mass of the rocket
         mp = self.rocket.dry_mass
         # Calculate added mass
-        ma = (
-            self.parachute_added_mass_coefficient
-            * rho
-            * (2 / 3)
-            * np.pi
-            * self.parachute_radius**2
-            * self.parachute_height
-        )
-
-        # Calculate freestream speed
-        freestream_x = vx - wind_velocity_x
-        freestream_y = vy - wind_velocity_y
-        freestream_z = vz
-        free_stream_speed = (freestream_x**2 + freestream_y**2 + freestream_z**2) ** 0.5
+        #ma = (
+        #    self.parachute_added_mass_coefficient
+        #    * rho
+        #    * (2 / 3)
+        #    * np.pi
+        #    * self.parachute_radius**2
+        #    * self.parachute_height
+        #)
 
         # Determine drag force
-        pseudo_drag = -0.5 * rho * self.parachute_cd_s * free_stream_speed
-        # pseudo_drag = pseudo_drag - ka * rho * 4 * np.pi * (R**2) * Rdot
-        Dx = pseudo_drag * freestream_x  # add eta efficiency for wake
-        Dy = pseudo_drag * freestream_y
-        Dz = pseudo_drag * freestream_z
-        
-        ax = Dx / (mp + ma)
-        ay = Dy / (mp + ma)
-        az = (Dz - mp * self.env.gravity.get_value_opt(z)) / (mp + ma)
+        wind_direction = Va.unit_vector
+        wind_speed = abs(Va)
+        spacial_aoa = math.acos(wind_direction.z/wind_speed) if wind_speed > 0 else 0
+        dynamic_pressure = 0.5 * rho * wind_speed**2
+        ref_area = 3.1415 * r0 **2
+        drag_force = Cd * spacial_aoa * dynamic_pressure * ref_area
+        Fx = drag_force * wind_direction.x
+        Fy = drag_force * wind_direction.y
+        Fz = drag_force * wind_direction.z
+
+        ax = Fx / (mp)
+        ay = Fy / (mp)
+        az = (Fz - mp * self.env.gravity.get_value_opt(z)) / (mp)
 
         # Add coriolis acceleration
         _, w_earth_y, w_earth_z = self.env.earth_rotation_vector
         ax -= 2 * (vz * w_earth_y - vy * w_earth_z)
         ay -= 2 * (vx * w_earth_z)
         az -= 2 * (-vx * w_earth_y)
-
+        #print("velocity down, time, acceleration down:", vz, t, az)
+        print(" velocity down is", vz)
         if post_processing:
             self.__post_processed_variables.append(
-                [t, ax, ay, az, 0, 0, 0, Dx, Dy, Dz, 0, 0, 0, 0]
+                [t, ax, ay, az, 0, 0, 0, Fx, Fy, Fz, 0, 0, 0, 0]
             )
 
         return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0]
