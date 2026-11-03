@@ -2734,19 +2734,44 @@ class Flight:
         z = u[2]
 
         #mass and inertia
-        mp = self.rocket.dry_mass
-        Ixx = self.rocket.inertia[0] + 
-        Izz = 
+        mpl = self.rocket.dry_mass
+        zpl = 5 #distance of the center of mass from the parachute attachment point
+        Ixx = self.rocket.inertia[0] + zpl**2 * mpl #same as Iyy
+        Izz = self.rocket.inertia[2]
         epsilon = .83
         R0 = self.parachute_radius #flippin
         Rp = (2/3) * R0
         rho = self.env.density.get_value_opt(z)
         ma = .5 * (4/3) * 3.1415 * rho * Rp**3 * epsilon #mass of air in parachute
 
+        #apparent mass and inertia
+        Iaxx = (1/5) * ma * Rp**2 * (1 + epsilon**2) #same as Iyy again, will not be listed in future
+        Iazz = (2/5) * ma * Rp**2
+        zp = (-3/8) * epsilon * Rp #center of the canopy
 
-        ax = Fx / (mp)
-        ay = Fy / (mp)
-        az = (Fz - mp * self.env.gravity.get_value_opt(z)) / (mp)
+        k11 = .5
+        k33 = 1
+        k44 = .24
+        k15 = .75 #empherical
+        k66 = 1 # 66 specifically not mentioned in the article
+
+        a11 = k11 * ma
+        a33 = k33 * ma
+        a44 = k44 * Iaxx
+        a66 = k66 * Iazz
+        a15 = k15 * ma * zp
+
+        K = zpl * mpl
+        I = np.diag([Ixx + a44, Ixx + a44, Izz + a66])
+        Igeo = np.array([K + a15, Ixx + a44 - Izz - a66, a33 - a11]).T
+        Mcr = [0,0,0]
+        M = np.diag([mpl + a11, mpl + a11, mpl + a33])
+        Mgeo = np.array([mpl + a11, mpl + a33, K + a15]).T
+
+        # space variables/tensors
+        p,q,r = u[10], u[11], u[12]
+        u,v,w = u[3], u[4], u[5] #hopefully the linear velocities lmoa
+
 
         # Add coriolis acceleration
         _, w_earth_y, w_earth_z = self.env.earth_rotation_vector
