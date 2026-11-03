@@ -2737,7 +2737,7 @@ class Flight:
         Vb = Vector([vx, vy, vz]) #body velocity vector
         rho = self.env.density.get_value_opt(z)
         wind_velocity_x = self.env.wind_velocity_x.get_value_opt(z)
-        wind_velocity_y = self.env.wind_velocity_y.get_value_opt(z) + 5 * math.sin(t/10) #wind gusts
+        wind_velocity_y = self.env.wind_velocity_y.get_value_opt(z)
         Vw = Vector([wind_velocity_x, wind_velocity_y, 0])
         Va = Vw - Vb 
         # Get the mass of the rocket
