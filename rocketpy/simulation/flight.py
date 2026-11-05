@@ -2709,28 +2709,6 @@ class Flight:
         return u_dot
 #we need r0
     def u_dot_parachute(self, t, u, post_processing=False):
-        """Calculates derivative of u state vector with respect to time
-        when rocket is flying under parachute. A 3 DOF approximation is
-        used.
-
-        Parameters
-        ----------
-        t : float
-            Time in seconds
-        u : list
-            State vector defined by u = [x, y, z, vx, vy, vz, e0, e1,
-            e2, e3, omega1, omega2, omega3].
-        post_processing : bool, optional
-            If True, adds flight data information directly to self
-            variables such as self.angle_of_attack. Default is False.
-
-        Return
-        ------
-        u_dot : list
-            State vector defined by u_dot = [vx, vy, vz, ax, ay, az,
-            e0dot, e1dot, e2dot, e3dot, alpha1, alpha2, alpha3].
-
-        """
         Cd = self.parachute_drag_coefficient #function of angle of attack, but we will assume it is constant for now
         C_roll, C_pitch, C_n = self.parachute_moment_coefficients #function of idfk, but we will assume it is constant for now
         r0 = self.parachute_radius #radius of the parachute
@@ -2812,23 +2790,25 @@ class Flight:
         ax_b = solutionset[0]
         ay_b = solutionset[1]
         az_b = solutionset[2]
-
         w1dot_b = solutionset[3]
         w2dot_b = solutionset[4]
         w3dot_b = solutionset[5]
-
         ax, ay, az = R_ub * [ax_b, ay_b, az_b]
         w1dot, w2dot, w3dot = R_ub * [w1dot_b, w2dot_b, w3dot_b]
-
+        e = u[6:10]
+        e_dot = [
+            0.5 * (-w1dot * e[1] - w2dot * e[2] - w3dot * e[3]),
+            0.5 * (w1dot * e[0] + w3dot * e[2] - w2dot * e[3]),
+            0.5 * (w2dot * e[0] - w3dot * e[1] + w1dot * e[3]),
+            0.5 * (w3dot * e[0] + w2dot * e[1] - w1dot * e[2]),
+        ]
         
-        #print("velocity down, time, acceleration down:", vz, t, az)
-        print(" velocity down is", vz)
         if post_processing:
             self.__post_processed_variables.append(
                 [t, ax, ay, az, w1dot, w2dot, w3dot, F.x, F.y, F.z, M.x, M.y, M.z, 0]
             )
 
-        return [u[3], u[4], u[5], ax, ay, az, 0, 0, 0, 0, 0, 0, 0] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
+        return [u[3], u[4], u[5], ax, ay, az, e_dot[0], e_dot[1], e_dot[2], e_dot[3], w1dot, w2dot, w3dot] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
 
     @staticmethod
     def quaternion_to_zero_rotation(q):
