@@ -2731,7 +2731,15 @@ class Flight:
             e0dot, e1dot, e2dot, e3dot, alpha1, alpha2, alpha3].
 
         """
+        Cd = self.parachute_drag_coefficient #function of angle of attack, but we will assume it is constant for now
+        r0 = self.parachute_radius #radius of the parachute
+
         z = u[2]
+        p,q,r = u[10], u[11], u[12]
+        u,v,w = u[3], u[4], u[5] #hopefully the linear velocities lmoa
+
+        if abs(w) > 30:
+            u[6:10] = [0, 0, -1, 0]
 
         #mass and inertia
         mpl = self.rocket.dry_mass
@@ -2769,10 +2777,15 @@ class Flight:
         Mgeo = np.array([mpl + a11, mpl + a33, K + a15]).T
 
         #forces and moments
+        R_ub = self.quaternion_to_zero_rotation(u[6:10])
+        G = R_ub.T * (0,0,mpl).T #gravity vector in body frame
+        Mgpl = (0,0,zpl) @ np.cross(G) #moment due to gravity
 
+        Va = [u,v,w] - R_ub.T * (self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0).T #relative velocity of the parachute to the air
+        q = .5 * rho * (Va.magnitude())**2
+        S0 = 3.1415 * R0**2
+        Drag = Cd * q * S0 * 
         # space variables/tensors
-        p,q,r = u[10], u[11], u[12]
-        u,v,w = u[3], u[4], u[5] #hopefully the linear velocities lmoa
 
 
         # Add coriolis acceleration
@@ -2790,25 +2803,23 @@ class Flight:
         return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
     
     @staticmethod
-    def quaternion_to_euler(e0, e1, e2, e3):
-        # Rotation about X (roll)
-        x = math.atan2(
-            2 * (e0 * e1 + e2 * e3),
-            1 - 2 * (e1**2 + e2**2)
-        )
+    def quaternion_to_zero_rotation(q):
+        #takes in rocket quaternion and returns the rotation matrix to rotate the rocket to a zero rotation state
+        e0, e1, e2, e3 = q
 
-        # Rotation about Y (pitch)
-        sin_y = 2 * (e0 * e2 - e3 * e1)
-        sin_y = max(-1.0, min(1.0, sin_y))
-        y = math.asin(sin_y)
+        # Normalize quaternion
+        q_norm = np.linalg.norm(q)
+        e0, e1, e2, e3 = np.array(q) / q_norm
 
-        # Rotation about Z (yaw)
-        z = math.atan2(
-            2 * (e0 * e3 + e1 * e2),
-            1 - 2 * (e2**2 + e3**2)
-        )
+        # Body-to-world rotation matrix
+        R = np.array([
+            [1 - 2*(e2**2 + e3**2), 2*(e1*e2 - e0*e3),     2*(e1*e3 + e0*e2)],
+            [2*(e1*e2 + e0*e3),     1 - 2*(e1**2 + e3**2), 2*(e2*e3 - e0*e1)],
+            [2*(e1*e3 - e0*e2),     2*(e2*e3 + e0*e1),     1 - 2*(e1**2 + e2**2)]
+        ])
 
-        return x, y, z
+        # Inverse rotation
+        return R.T
 
     @cached_property
     def solution_array(self):
