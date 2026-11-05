@@ -2732,11 +2732,10 @@ class Flight:
 
         """
         Cd = self.parachute_drag_coefficient #function of angle of attack, but we will assume it is constant for now
+        C_roll, C_pitch, C_n = self.parachute_moment_coefficients #function of idfk, but we will assume it is constant for now
         r0 = self.parachute_radius #radius of the parachute
 
         z = u[2]
-        p,q,r = u[10], u[11], u[12]
-        u,v,w = u[3], u[4], u[5] #hopefully the linear velocities lmoa
 
         if abs(w) > 30:
             u[6:10] = [0, 0, -1, 0]
@@ -2777,31 +2776,60 @@ class Flight:
         Mgeo = np.array([mpl + a11, mpl + a33, K + a15]).T
 
         #forces and moments
-        R_ub = self.quaternion_to_zero_rotation(u[6:10])
+        R_ub = self.quaternion_to_zero_rotation(u[6:10]) #ima be using this bad boy alot
+        p,q,r = R_ub.T * [u[10], u[11], u[12]]
+        u,v,w = R_ub.T * [u[3], u[4], u[5]] #hopefully the linear velocities lmoa
+
         G = R_ub.T * (0,0,mpl).T #gravity vector in body frame
         Mgpl = (0,0,zpl) @ np.cross(G) #moment due to gravity
 
         Va = [u,v,w] - R_ub.T * (self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0).T #relative velocity of the parachute to the air
         q = .5 * rho * (Va.magnitude())**2
         S0 = 3.1415 * R0**2
-        Drag = Cd * q * S0 * 
-        # space variables/tensors
+        Drag = Cd * q * S0 * Va.unit_vector() #drag force in body frame
+        Maero = 2 * q * S0 * R0 * [C_roll, C_pitch, C_n] #aerodynamic moments in body frame
 
+        F = Drag + G
+        M = Maero + Mgpl #so cute
 
-        # Add coriolis acceleration
-        _, w_earth_y, w_earth_z = self.env.earth_rotation_vector
-        ax -= 2 * (vz * w_earth_y - vy * w_earth_z)
-        ay -= 2 * (vx * w_earth_z)
-        az -= 2 * (-vx * w_earth_y)
+        #constant matrix
+        B1 = (F.x+v*r(mpl+a11)-w*q(mpl+a33)-(K+a15)*r*p)/(mpl+a11)
+        B2 = (F.y-u*r(mpl+a11)+w*p(mpl+a33)-q*r*(K+a15))/(mpl+a11)
+        B3 = (F.z-(v*q-u*q)*(mpl+a11)-(K+a15)*(mpl+a11))/(mpl+a33)
+        B4 = (M.x-(w*p-u*r)*(K+a15)+q*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
+        B5 = (M.y-(w*q-u*r)*(K+a15)-p*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
+        B6 = M.z/(Izz+a66)
+        B = np.array([B1, B2, B3, B4, B5, B6]).T
+
+        #coefficient matrix
+        A1 = (K+a15)/(mpl+a11)
+        A2 = -1*(K+a15)/(mpl+a11)
+        A4 = -1*(K+a15)/(Ixx+a44)
+        A5 = 1*(K+a15)/(Ixx+a44)
+        A = np.array([[1,0,0,0,A1,0],[0,1,0,A2,0,0],[0,0,1,0,0,0],[0,A4,0,1,0,0],[A5,0,0,0,1,0],[0,0,0,0,0,1]])
+
+        solutionset = np.linalg.solve(A,B)
+        ax_b = solutionset[0]
+        ay_b = solutionset[1]
+        az_b = solutionset[2]
+
+        w1dot_b = solutionset[3]
+        w2dot_b = solutionset[4]
+        w3dot_b = solutionset[5]
+
+        ax, ay, az = R_ub * [ax_b, ay_b, az_b]
+        w1dot, w2dot, w3dot = R_ub * [w1dot_b, w2dot_b, w3dot_b]
+
+        
         #print("velocity down, time, acceleration down:", vz, t, az)
         print(" velocity down is", vz)
         if post_processing:
             self.__post_processed_variables.append(
-                [t, ax, ay, az, 0, 0, 0, Fx, Fy, Fz, 0, 0, 0, 0]
+                [t, ax, ay, az, w1dot, w2dot, w3dot, F.x, F.y, F.z, M.x, M.y, M.z, 0]
             )
 
-        return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
-    
+        return [u[3], u[4], u[5], ax, ay, az, 0, 0, 0, 0, 0, 0, 0] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
+
     @staticmethod
     def quaternion_to_zero_rotation(q):
         #takes in rocket quaternion and returns the rotation matrix to rotate the rocket to a zero rotation state
