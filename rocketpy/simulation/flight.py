@@ -2709,22 +2709,21 @@ class Flight:
         return u_dot
 #we need r0
     def u_dot_parachute(self, t, u, post_processing=False):
-        Cd = self.parachute_drag_coefficient #function of angle of attack, but we will assume it is constant for now
-        C_roll, C_pitch, C_n = self.parachute_moment_coefficients #function of idfk, but we will assume it is constant for now
-        r0 = self.parachute_radius #radius of the parachute
+        Cd = 2.2 #function of angle of attack, but we will assume it is constant for now
+        C_roll, C_pitch, C_n = [.1,.2,.3] #function of idfk, but we will assume it is constant for now
 
         z = u[2]
 
-        if abs(w) > 30:
+        if abs(u[5]) > 30:
             u[6:10] = [0, 0, -1, 0]
 
         #mass and inertia
         mpl = self.rocket.dry_mass
         zpl = 5 #distance of the center of mass from the 0,0,0
-        Ixx = self.rocket.inertia[0] + zpl**2 * mpl #same as Iyy
-        Izz = self.rocket.inertia[2]
+        Ixx = 9 + zpl**2 * mpl #same as Iyy
+        Izz = .06
         epsilon = .83
-        R0 = self.parachute_radius #flippin
+        R0 = 2.4/2 #flippin
         Rp = (2/3) * R0
         rho = self.env.density.get_value_opt(z)
         ma = .5 * (4/3) * 3.1415 * rho * Rp**3 * epsilon #mass of air in parachute
@@ -2758,8 +2757,8 @@ class Flight:
         p,q,r = R_ub.T * [u[10], u[11], u[12]]
         u,v,w = R_ub.T * [u[3], u[4], u[5]] #hopefully the linear velocities lmoa
 
-        G = R_ub.T * (0,0,mpl).T #gravity vector in body frame
-        Mgpl = (0,0,zpl) @ np.cross(G) #moment due to gravity
+        G = R_ub.T * np.array([0,0,mpl]) #gravity vector in body frame
+        Mgpl = np.array([0,0,zpl]) @ np.cross(G) #moment due to gravity
 
         Va = [u,v,w] - R_ub.T * (self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0).T #relative velocity of the parachute to the air
         q = .5 * rho * (Va.magnitude())**2

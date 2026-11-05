@@ -1,5 +1,8 @@
-parachute_initial_height = 400
-parachute_cd_s = 10 # Drag coefficient times reference area
+# just drag
+
+parachute_initial_height = 500 #parachute deploys fully 50 meters later, and initially goes 20 m/s downward
+parachute_radius = (244/2)/100
+parachute_drag_coefficient = 2.2
 
 from rocketpy import Environment, Flight, Rocket, SolidMotor
 env = Environment(latitude=32.990254, longitude=-103.66157, elevation=899) #accurate btw, going off Saragossa, Texas
@@ -35,8 +38,8 @@ dead_motor = SolidMotor(
 
 
 payload = Rocket(
-    radius=127 / 2000,
-    mass=36.6,
+    radius= 13.1/1000,
+    mass=36,
     inertia=(9, 9, 0.06),
     power_off_drag=.5,
     power_on_drag=.5,
@@ -76,8 +79,8 @@ def main_trigger(p, h, y):
 
 Main = payload.add_parachute(
     "Main",
-    cd_s=parachute_cd_s,
-    trigger=parachute_initial_height-100,
+    cd_s = parachute_drag_coefficient * parachute_radius**2 * 3.14159,
+    trigger=parachute_initial_height-50,
     sampling_rate=105, #all following are really non-essintial
     lag=0,
     noise=(0, 8.3, 0.5),
