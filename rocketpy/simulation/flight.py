@@ -2735,7 +2735,7 @@ class Flight:
 
         #mass and inertia
         mpl = self.rocket.dry_mass
-        zpl = 5 #distance of the center of mass from the parachute attachment point
+        zpl = 5 #distance of the center of mass from the 0,0,0
         Ixx = self.rocket.inertia[0] + zpl**2 * mpl #same as Iyy
         Izz = self.rocket.inertia[2]
         epsilon = .83
@@ -2767,6 +2767,8 @@ class Flight:
         Mcr = [0,0,0]
         M = np.diag([mpl + a11, mpl + a11, mpl + a33])
         Mgeo = np.array([mpl + a11, mpl + a33, K + a15]).T
+
+        #forces and moments
 
         # space variables/tensors
         p,q,r = u[10], u[11], u[12]
