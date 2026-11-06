@@ -2755,10 +2755,11 @@ class Flight:
         G = R_ub.transpose @ Vector([0,0,mpl*g]) #gravity vector in body frame
         Mgpl = Vector([0, 0, zpl]) ^ G #moment due to gravity
 
-        Va = [u,v,w] - R_ub.transpose @ (self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0).T #relative velocity of the parachute to the air
-        q = .5 * rho * (Va.abs())**2
+        Wu = Vector([self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0]) #wind vector in inertial frame
+        Va = Vector([u, v, w]) - (R_ub.transpose @ Wu) #relative velocity of the parachute to the air
+        q = .5 * rho * (abs(Va))**2
         S0 = math.pi * R0**2
-        Drag = -1 * Cd * q * S0 * Va.unit_vector() #drag force in body frame
+        Drag = -1 * Cd * q * S0 * unit_vector(Va) #drag force in body frame
         Maero = Vector([C_roll, C_pitch, C_n]) * (2 * q * S0 * R0)  #aerodynamic moments in body frame
 
         F = Drag + G
