@@ -2712,10 +2712,8 @@ class Flight:
         Cd = 2.2 #function of angle of attack, but we will assume it is constant for now
         C_roll, C_pitch, C_n = [.1,.2,.3] #function of idfk, but we will assume it is constant for now
 
-        z = u[2]
-
-        if abs(u[5]) > 30:
-            u[6:10] = [0, 0, -1, 0]
+        _, _, z, vx, vy, vz, e0, e1, e2, e3, omega1, omega2, omega3 = u
+        e = [e0, e1, e2, e3]
 
         #mass and inertia
         mpl = self.rocket.dry_mass
@@ -2726,7 +2724,7 @@ class Flight:
         R0 = 2.4/2 #flippin
         Rp = (2/3) * R0
         rho = self.env.density.get_value_opt(z)
-        ma = .5 * (4/3) * 3.1415 * rho * Rp**3 * epsilon #mass of air in parachute
+        ma = .5 * (4/3) * math.pi * rho * Rp**3 * epsilon #mass of air in parachute
 
         #apparent mass and inertia
         Iaxx = (1/5) * ma * Rp**2 * (1 + epsilon**2) #same as Iyy again, will not be listed in future
@@ -2745,44 +2743,41 @@ class Flight:
         a66 = k66 * Iazz
         a15 = k15 * ma * zp
 
-        K = zpl * mpl
-        I = np.diag([Ixx + a44, Ixx + a44, Izz + a66])
-        Igeo = np.array([K + a15, Ixx + a44 - Izz - a66, a33 - a11]).T
-        Mcr = [0,0,0]
-        M = np.diag([mpl + a11, mpl + a11, mpl + a33])
-        Mgeo = np.array([mpl + a11, mpl + a33, K + a15]).T
+        Kpl = zpl * mpl
 
         #forces and moments
         R_ub = self.quaternion_to_zero_rotation(u[6:10]) #ima be using this bad boy alot
-        p,q,r = R_ub.T * [u[10], u[11], u[12]]
-        u,v,w = R_ub.T * [u[3], u[4], u[5]] #hopefully the linear velocities lmoa
+        p,q,r = [u[10], u[11], u[12]]
+        v_body = R_ub @ Vector([vx, vy, vz])
+        u,v,w = [v_body.x, v_body.y, v_body.z]
 
-        G = R_ub.T * np.array([0,0,mpl]) #gravity vector in body frame
-        Mgpl = np.array([0,0,zpl]) @ np.cross(G) #moment due to gravity
+        g = self.env.gravity.get_value_opt(z)
+        G = R_ub.transpose @ Vector([0,0,mpl*g]) #gravity vector in body frame
+        Mgpl = Vector([0, 0, zpl]) ^ G #moment due to gravity
 
-        Va = [u,v,w] - R_ub.T * (self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0).T #relative velocity of the parachute to the air
-        q = .5 * rho * (Va.magnitude())**2
-        S0 = 3.1415 * R0**2
-        Drag = Cd * q * S0 * Va.unit_vector() #drag force in body frame
-        Maero = 2 * q * S0 * R0 * [C_roll, C_pitch, C_n] #aerodynamic moments in body frame
+        Va = [u,v,w] - R_ub.transpose @ (self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0).T #relative velocity of the parachute to the air
+        q = .5 * rho * (Va.abs())**2
+        S0 = math.pi * R0**2
+        Drag = -1 * Cd * q * S0 * Va.unit_vector() #drag force in body frame
+        Maero = Vector([C_roll, C_pitch, C_n]) * (2 * q * S0 * R0)  #aerodynamic moments in body frame
 
         F = Drag + G
         M = Maero + Mgpl #so cute
 
-        #constant matrix
-        B1 = (F.x+v*r(mpl+a11)-w*q(mpl+a33)-(K+a15)*r*p)/(mpl+a11)
-        B2 = (F.y-u*r(mpl+a11)+w*p(mpl+a33)-q*r*(K+a15))/(mpl+a11)
-        B3 = (F.z-(v*q-u*q)*(mpl+a11)-(K+a15)*(mpl+a11))/(mpl+a33)
-        B4 = (M.x-(w*p-u*r)*(K+a15)+q*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
-        B5 = (M.y-(w*q-u*r)*(K+a15)-p*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
+        #constant matrix    
+        B1 = (F.x+v*r*(mpl+a11)-w*q*(mpl+a33)-(Kpl+a15)*r*p)/(mpl+a11)
+        B2 = (F.y-u*r*(mpl+a11)+w*p*(mpl+a33)-q*r*(Kpl+a15))/(mpl+a11)
+        B3 = (F.z-(v*q-u*q)*(mpl+a11)-(Kpl+a15)*(mpl+a11))/(mpl+a33)
+        B4 = (M.x-(w*p-u*r)*(Kpl+a15)+q*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
+        B5 = (M.y-(w*q-u*r)*(Kpl+a15)-p*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
         B6 = M.z/(Izz+a66)
-        B = np.array([B1, B2, B3, B4, B5, B6]).T
+        B = np.array([B1, B2, B3, B4, B5, B6].transpose())
 
         #coefficient matrix
-        A1 = (K+a15)/(mpl+a11)
-        A2 = -1*(K+a15)/(mpl+a11)
-        A4 = -1*(K+a15)/(Ixx+a44)
-        A5 = 1*(K+a15)/(Ixx+a44)
+        A1 = (Kpl+a15)/(mpl+a11)
+        A2 = -1*(Kpl+a15)/(mpl+a11)
+        A4 = -1*(Kpl+a15)/(Ixx+a44)
+        A5 = 1*(Kpl+a15)/(Ixx+a44)
         A = np.array([[1,0,0,0,A1,0],[0,1,0,A2,0,0],[0,0,1,0,0,0],[0,A4,0,1,0,0],[A5,0,0,0,1,0],[0,0,0,0,0,1]])
 
         solutionset = np.linalg.solve(A,B)
@@ -2792,27 +2787,33 @@ class Flight:
         w1dot_b = solutionset[3]
         w2dot_b = solutionset[4]
         w3dot_b = solutionset[5]
-        ax, ay, az = R_ub * [ax_b, ay_b, az_b]
-        w1dot, w2dot, w3dot = R_ub * [w1dot_b, w2dot_b, w3dot_b]
+        a_inertial = R_ub @ (Vector([ax_b, ay_b, az_b]) + (Vector([p,q,r]) ^ v_body))
+        ax, ay, az = a_inertial.x, a_inertial.y, a_inertial.z
+        w1dot, w2dot, w3dot = w1dot_b, w2dot_b, w3dot_b
         e = u[6:10]
         e_dot = [
-            0.5 * (-w1dot * e[1] - w2dot * e[2] - w3dot * e[3]),
-            0.5 * (w1dot * e[0] + w3dot * e[2] - w2dot * e[3]),
-            0.5 * (w2dot * e[0] - w3dot * e[1] + w1dot * e[3]),
-            0.5 * (w3dot * e[0] + w2dot * e[1] - w1dot * e[2]),
+            0.5 * (-p * e[1] - q * e[2] - r * e[3]),
+            0.5 * (p * e[0] + r * e[2] - q * e[3]),
+            0.5 * (q * e[0] - r * e[1] + p * e[3]),
+            0.5 * (r * e[0] + q * e[1] - p * e[2]),
         ]
         
         if post_processing:
             self.__post_processed_variables.append(
-                [t, ax, ay, az, w1dot, w2dot, w3dot, F.x, F.y, F.z, M.x, M.y, M.z, 0]
+                [t, ax, ay, az, w1dot, w2dot, w3dot, Drag.x, Drag.y, Drag.z, Maero.x, Maero.y, Maero.z, 0]
             )
 
-        return [u[3], u[4], u[5], ax, ay, az, e_dot[0], e_dot[1], e_dot[2], e_dot[3], w1dot, w2dot, w3dot] #https://claude.ai/chat/9f9bc815-7b30-4069-83a7-d0b58ce96038
+        return [
+            vx, vy, vz, ax, ay, az,
+            e_dot[0], e_dot[1], e_dot[2], e_dot[3],
+            w1dot, w2dot, w3dot,
+        ]
 
     @staticmethod
     def quaternion_to_zero_rotation(q):
         #takes in rocket quaternion and returns the rotation matrix to rotate the rocket to a zero rotation state
-        e0, e1, e2, e3 = q
+        return Matrix.transformation(q).transpose
+        """e0, e1, e2, e3 = q
 
         # Normalize quaternion
         q_norm = np.linalg.norm(q)
@@ -2826,7 +2827,7 @@ class Flight:
         ])
 
         # Inverse rotation
-        return R.T
+        return R"""
 
     @cached_property
     def solution_array(self):

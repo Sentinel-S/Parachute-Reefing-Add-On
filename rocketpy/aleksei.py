@@ -90,7 +90,7 @@ initial_solution = [
     0,                              # t (s)
     0, 0, env.elevation + parachute_initial_height,  # x, y, z (m)
     0, 0, -20,                        # vx, vy, vz (m/s)
-    1, 0, 0, 0,                     # e0, e1, e2, e3
+    0, 0, -1, 0,                     # e0, e1, e2, e3
     0, 0, 0,                        # w1, w2, w3 (rad/s)
 ]
 
