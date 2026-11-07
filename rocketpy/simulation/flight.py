@@ -2745,99 +2745,41 @@ class Flight:
 
         Kpl = zpl * mpl
 
-        #forces and moments
-        R_ub = self.quaternion_to_zero_rotation(u[6:10]) #ima be using this bad boy alot
-        p,q,r = [u[10], u[11], u[12]]
-        v_body = R_ub @ Vector([vx, vy, vz])
-        uself,v,w = [v_body.x, v_body.y, v_body.z]
-
-        g = self.env.gravity.get_value_opt(z)
-        G = R_ub.transpose @ Vector([0,0,mpl*g]) #gravity vector in body frame
-        Mgpl = Vector([0, 0, zpl]) ^ G #moment due to gravity
-
-        Wu = Vector([self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0]) #wind vector in inertial frame
-        Va = Vector([uself, v, w]) - (R_ub.transpose @ Wu) #relative velocity of the parachute to the air
-        q = .5 * rho * (abs(Va))**2
-        S0 = math.pi * R0**2
-        Drag = Cd * q * S0 * Va / abs(Va) #drag force in body frame
-        Maero = Vector([C_roll, C_pitch, C_n]) * (2 * q * S0 * R0)  #aerodynamic moments in body frame
-
-        F = Vector([0, 0, 0])#Drag + G
-        M = Vector([0, 0, 0])#Maero + Mgpl #so cute
-
-        #constant matrix    
-        B1 = (F.x+v*r*(mpl+a11)-w*q*(mpl+a33)-(Kpl+a15)*r*p)/(mpl+a11)
-        B2 = (F.y-uself*r*(mpl+a11)+w*p*(mpl+a33)-q*r*(Kpl+a15))/(mpl+a11)
-        B3 = (F.z-(v*p-uself*q)*(mpl+a11)-(Kpl+a15)*(mpl+a11))/(mpl+a33)
-        B4 = (M.x-(w*p-uself*r)*(Kpl+a15)+q*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
-        B5 = (M.y-(w*q-uself*r)*(Kpl+a15)-p*r*(Ixx+a44-Izz-a66))/(Ixx+a44)
-        B6 = M.z/(Izz+a66)
-        B = np.array([B1, B2, B3, B4, B5, B6], dtype=float)
-
-        # Coefficient matrix
-        A1 = (Kpl + a15) / (mpl + a11)
-        A2 = -(Kpl + a15) / (mpl + a11)
-        A4 = -(Kpl + a15) / (Ixx + a44)
-        A5 = (Kpl + a15) / (Ixx + a44)
-        A = np.array([
-            [1, 0, 0, 0, A1, 0],
-            [0, 1, 0, A2, 0, 0],
-            [0, 0, 1, 0, 0, 0],
-            [0, A4, 0, 1, 0, 0],
-            [A5, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 1]
-        ], dtype=float)
-
-        solutionset = np.linalg.solve(A, B)
-        ax_b = solutionset[0]
-        ay_b = solutionset[1]
-        az_b = solutionset[2]
-        w1dot_b = solutionset[3]
-        w2dot_b = solutionset[4]
-        w3dot_b = solutionset[5]
-        a_inertial = R_ub @ (Vector([ax_b, ay_b, az_b]) + (Vector([p,q,r]) ^ v_body))
-        ax, ay, az = a_inertial.x, a_inertial.y, a_inertial.z
-        w1dot, w2dot, w3dot = w1dot_b, w2dot_b, w3dot_b
-        e = u[6:10]
-        e_dot = [
-            0.5 * (-p * e[1] - q * e[2] - r * e[3]),
-            0.5 * (p * e[0] + r * e[2] - q * e[3]),
-            0.5 * (q * e[0] - r * e[1] + p * e[3]),
-            0.5 * (r * e[0] + q * e[1] - p * e[2]),
-        ]
-
-        print("vz: ", vz)
+        R_ub = self.quaternion_to_zero_rotation([e0, e1, e2, e3]) #ima be using this bad boy alot
+        
         
         if post_processing:
             self.__post_processed_variables.append(
-                [t, ax, ay, az, w1dot, w2dot, w3dot, Drag.x, Drag.y, Drag.z, Maero.x, Maero.y, Maero.z, 0]
+                [0.001, 0.001, 0.001, 0.001, 0.001, 0.001,
+                0.001, 0, 0, 0,
+                0, 0, 0, 0.001]
             )
 
         return [
-            vx, vy, vz, ax, ay, az,
-            e_dot[0], e_dot[1], e_dot[2], e_dot[3],
-            w1dot, w2dot, w3dot,
+            0.001, 0.001, 0.001,  # vx, vy, vz
+            0, 0, 0,  # ax, ay, az
+            0.001, 0.001, 0.001, 0.001,  # e_dot
+            0, 0, 0   # angular accelerations
         ]
 
     @staticmethod
     def quaternion_to_zero_rotation(q):
         #takes in rocket quaternion and returns the rotation matrix to rotate the rocket to a zero rotation state
-        return Matrix.transformation(q).transpose
-        """e0, e1, e2, e3 = q
+        e0, e1, e2, e3 = q
 
         # Normalize quaternion
         q_norm = np.linalg.norm(q)
         e0, e1, e2, e3 = np.array(q) / q_norm
 
         # Body-to-world rotation matrix
-        R = np.array([
+        R = Matrix([
             [1 - 2*(e2**2 + e3**2), 2*(e1*e2 - e0*e3),     2*(e1*e3 + e0*e2)],
             [2*(e1*e2 + e0*e3),     1 - 2*(e1**2 + e3**2), 2*(e2*e3 - e0*e1)],
             [2*(e1*e3 - e0*e2),     2*(e2*e3 + e0*e1),     1 - 2*(e1**2 + e2**2)]
         ])
 
         # Inverse rotation
-        return R"""
+        return R
 
     @cached_property
     def solution_array(self):

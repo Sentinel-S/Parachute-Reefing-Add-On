@@ -1,4 +1,53 @@
 # just drag
+import numpy as np
+from rocketpy.mathutils.vector_matrix import Vector
+from rocketpy.mathutils.vector_matrix import Matrix
+
+def quaternion_to_zero_rotation(q):
+    #takes in rocket quaternion and returns the rotation matrix to rotate the rocket to a zero rotation state
+    e0, e1, e2, e3 = q
+
+    # Normalize quaternion
+    q_norm = np.linalg.norm(q)
+    e0, e1, e2, e3 = np.array(q) / q_norm
+
+    # Body-to-world rotation matrix
+    R = Matrix([
+        [1 - 2*(e2**2 + e3**2), 2*(e1*e2 - e0*e3),     2*(e1*e3 + e0*e2)],
+        [2*(e1*e2 + e0*e3),     1 - 2*(e1**2 + e3**2), 2*(e2*e3 - e0*e1)],
+        [2*(e1*e3 - e0*e2),     2*(e2*e3 + e0*e1),     1 - 2*(e1**2 + e2**2)]
+    ])
+
+    # Inverse rotation
+    return R
+
+vector1 = Vector([1, -2, 3])
+vector2 = Vector([-4, 5, 6])
+vector3 = vector1 + vector2
+gravity = Vector([0, 0, -9.81])
+
+print(f"Vector 1: {vector1}")
+print(f"Vector 2: {vector2}")
+print(f"Vector 3: {vector3}")
+
+print(f"Vector 1 magnitude: {abs(vector1)}")
+print(f"Vector 2 direction: {vector2/abs(vector2)}")
+print(f"Vector 1 cross 2: {vector1.cross(vector2)}")
+print(f"Vector 1 dot 2: {vector1.dot(vector2)}")
+
+matrix1 = Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+matrix2 = Matrix([[7, 8, 9], [10, 11, 12], [13, 14, 15]])
+matrix3 = matrix1 + matrix2
+
+print(f"Matrix 1 transpose: {matrix1.transpose}")
+
+e = [0,0,-1,0] #0,0,0 quaternion
+R_ub = quaternion_to_zero_rotation(e)
+
+print(R_ub.transpose @ gravity)
+#that was the test for the vector and matrix classes, now onto the actual simulation code
+
+
 
 parachute_initial_height = 500 #parachute deploys fully 50 meters later, and initially goes 20 m/s downward
 parachute_radius = (244/2)/100
@@ -13,8 +62,8 @@ env.set_date(
     (today.year, today.month, today.day, 12)
 )
 env.set_atmospheric_model(type="Forecast", file="GFS")
-env.info()
-"""
+#env.info()
+
 dead_motor = SolidMotor(
     thrust_source=5000,
     dry_mass=1,
@@ -33,7 +82,7 @@ dead_motor = SolidMotor(
     throat_radius=11 / 1000,
     coordinate_system_orientation="nozzle_to_combustion_chamber",
 )
-"""
+
 #dead_motor.info()
 
 
@@ -105,7 +154,6 @@ flight = Flight(
     initial_solution=initial_solution,
     terminate_on_apogee=False,
 )
-
 print(f"Drop altitude: {parachute_initial_height} m AGL")
 print(f"Impact time: {flight.t_final:.2f} s")
 print(f"Impact velocity: {flight.impact_velocity:.2f} m/s")
