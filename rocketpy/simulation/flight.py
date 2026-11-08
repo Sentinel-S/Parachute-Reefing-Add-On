@@ -2745,9 +2745,25 @@ class Flight:
 
         Kpl = zpl * mpl
 
+        #frame prep
         R_ub = self.quaternion_to_zero_rotation([e0, e1, e2, e3]) #ima be using this bad boy alot
+        Vbody = R_ub.transpose @ Vector([vx, vy, vz])
+
+        #forces
+        G = R_ub.transpose @ Vector([0, 0, -self.env.gravity.get_value_opt(z) * mpl])
+        Wu = Vector([self.env.wind_velocity_x.get_value_opt(z), self.env.wind_velocity_y.get_value_opt(z), 0]) #wind vector in inertial frame
+        Va = Vbody - R_ub.transpose @ Wu
+        q = .5 * rho * (abs(Va))**2
+        S0 = math.pi * R0**2
+        Drag = Cd * q * S0 * Va / abs(Va)
         
+        F = Drag + G
+        #print("Vbody, V ltp", np.round(Va,2), np.round(Vector([vx, vy, vz]),2))
+        #print("net force:", np.round(Drag,2))
+        #print("Angular rates:", np.round(Vector([omega1, omega2, omega3]),2))
+
         
+
         if post_processing:
             self.__post_processed_variables.append(
                 [0.001, 0.001, 0.001, 0.001, 0.001, 0.001,
@@ -2758,7 +2774,7 @@ class Flight:
         return [
             0.001, 0.001, 0.001,  # vx, vy, vz
             0, 0, 0,  # ax, ay, az
-            0.001, 0.001, 0.001, 0.001,  # e_dot
+            0, 0, 0, 0,  # e_dot
             0, 0, 0   # angular accelerations
         ]
 
