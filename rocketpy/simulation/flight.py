@@ -2755,13 +2755,12 @@ class Flight:
         Va = Vbody - R_ub.transpose @ Wu
         q = .5 * rho * (abs(Va))**2
         S0 = math.pi * R0**2
-        Drag = Cd * q * S0 * Va / abs(Va)
+        Drag = -1 * Cd * q * S0 * Va / abs(Va) #the article omits the negative sign, but like it doesn't work
         
         F = Drag + G
-        #print("Vbody, V ltp", np.round(Va,2), np.round(Vector([vx, vy, vz]),2))
-        #print("net force:", np.round(Drag,2))
-        #print("Angular rates:", np.round(Vector([omega1, omega2, omega3]),2))
-
+        print("drag force:", np.round(Drag,2))
+        print("gravity force:", np.round(G,2))
+        
         
 
         if post_processing:
