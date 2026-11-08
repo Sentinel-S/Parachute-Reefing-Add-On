@@ -2757,13 +2757,14 @@ class Flight:
         S0 = math.pi * R0**2
         Drag = -1 * Cd * q * S0 * Va / abs(Va) #the article omits the negative sign, but like it doesn't work
         
-        F = Drag + G
+        Fbody = Drag + G
         print("drag force:", np.round(Drag,2))
         print("gravity force:", np.round(G,2))
         
-        ax = F.x / (mpl)
-        ay = F.y / (mpl)
-        az = F.z / (mpl)
+        Vdot = Vector([Fbody.x / (mpl), Fbody.y / (mpl), Fbody.z / (mpl)])
+        ax, ay, az = R_ub @ (Vdot + Vector([0, 0, 0]))#Vector([omega1, omega2, omega3]).cross(Vbody)) #body/reference frame coupling
+        F = R_ub @ Fbody
+
 
         # Add coriolis acceleration
         _, w_earth_y, w_earth_z = self.env.earth_rotation_vector
