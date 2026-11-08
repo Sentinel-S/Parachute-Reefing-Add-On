@@ -2761,21 +2761,23 @@ class Flight:
         print("drag force:", np.round(Drag,2))
         print("gravity force:", np.round(G,2))
         
-        
+        ax = F.x / (mpl)
+        ay = F.y / (mpl)
+        az = F.z / (mpl)
 
+        # Add coriolis acceleration
+        _, w_earth_y, w_earth_z = self.env.earth_rotation_vector
+        ax -= 2 * (vz * w_earth_y - vy * w_earth_z)
+        ay -= 2 * (vx * w_earth_z)
+        az -= 2 * (-vx * w_earth_y)
+        #print("velocity down, time, acceleration down:", vz, t, az)
+        print(" velocity down is", vz)
         if post_processing:
             self.__post_processed_variables.append(
-                [0.001, 0.001, 0.001, 0.001, 0.001, 0.001,
-                0.001, 0, 0, 0,
-                0, 0, 0, 0.001]
+                [t, ax, ay, az, 0, 0, 0, F.x, F.y, F.z, 0, 0, 0, 0]
             )
 
-        return [
-            0.001, 0.001, 0.001,  # vx, vy, vz
-            0, 0, 0,  # ax, ay, az
-            0, 0, 0, 0,  # e_dot
-            0, 0, 0   # angular accelerations
-        ]
+        return [vx, vy, vz, ax, ay, az, 0, 0, 0, 0, 0, 0, 0]
 
     @staticmethod
     def quaternion_to_zero_rotation(q):
